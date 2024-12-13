@@ -1,0 +1,8 @@
+/.mypy_cache/
+/.vscode/
+config.json
+*.pyc
+/images/*.jpg
+
+.pytype
+/apworlds/*
