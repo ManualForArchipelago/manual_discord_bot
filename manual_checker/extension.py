@@ -5,13 +5,20 @@ import pathlib
 import glob
 
 import aiohttp
-from interactions.models import Extension, Message, Attachment
+from interactions.models import Extension, Message, Attachment, DMChannel
 from interactions import events, listen
 from interactions.models.internal import tasks
 
 from manual_checker.report import Report
 from .schema_validate import validate_json
 from shared import configuration
+
+SUPPORT_CHANNELS = [
+    1097538232914296944, # manual-dev
+    1097891385190928504, # manual-unstable
+    1098306155492687892, # manual-support
+    1098306190414450779, # manual-support-unstable
+]
 
 class ManualChecker(Extension):
     known_checksums = {}
@@ -30,6 +37,8 @@ class ManualChecker(Extension):
     @listen()
     async def on_message(self, event: events.MessageCreate) -> None:
         if event.message.author.bot:
+            return
+        if event.message._channel_id not in SUPPORT_CHANNELS and not isinstance(event.message.channel, DMChannel):
             return
 
         if event.message.attachments:

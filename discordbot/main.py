@@ -2,9 +2,6 @@ import asyncio
 import sys
 
 import interactions
-from interactions.ext import hybrid_commands as hybrid
-from interactions.ext import prefixed_commands as prefixed
-from redis import asyncio as aioredis
 
 from shared import configuration
 
@@ -26,17 +23,13 @@ class Bot(interactions.Client):
         #     enable_tracing=True,
         # )
         super().load_extension("manual_checker")
-        super().load_extension("interactions.ext.jurigged")
+        super().load_extension("pins")
+        # super().load_extension("interactions.ext.jurigged")
 
     def init(self) -> None:
-        prefixed.setup(self)
-        hybrid.setup(self)
         self.start(configuration.get("token"))
 
     async def on_ready(self) -> None:
-        self.redis = await aioredis.create_redis_pool(
-            "redis://localhost", minsize=5, maxsize=10
-        )
         print(
             "Logged in as {username} ({id})".format(
                 username=self.user.name, id=self.user.id
@@ -49,9 +42,6 @@ class Bot(interactions.Client):
         )
         print("--------")
 
-    # @interactions.listen()
-    async def on_button_pressed(self, event: interactions.events.ButtonPressed) -> None:
-        print(event.ctx.custom_id)
 
 def init() -> None:
     client = Bot()
