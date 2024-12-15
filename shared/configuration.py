@@ -5,6 +5,8 @@ import random
 import string
 from typing import Any
 
+from interactions import MISSING
+
 from .exceptions import InvalidArgumentException
 
 DEFAULTS = {
@@ -12,7 +14,7 @@ DEFAULTS = {
     "owners": [154363842451734528, 222352614832996354]
 }
 
-def get(key: str) -> Any:
+def get(key: str, default=MISSING) -> Any:
     try:
         cfg = json.load(open('config.json'))
     except FileNotFoundError:
@@ -21,6 +23,8 @@ def get(key: str) -> Any:
         return cfg[key]
     elif key in os.environ:
         cfg[key] = os.environ[key]
+    elif default is not MISSING:
+        cfg[key] = default
     elif key in DEFAULTS:
         # Lock in the default value if we use it.
         cfg[key] = DEFAULTS[key]
