@@ -16,6 +16,9 @@ async def validate_json(schema_table_name, table):
     if url not in SCHEMAS:
         async with aiohttp.ClientSession() as session:
             async with session.get(url) as response:
+                if response.status != 200:
+                    print(f"Could not fetch schema for {schema_table_name}")
+                    return errors
                 SCHEMAS[url] = json.loads(await response.text())
 
     schema = SCHEMAS[url]
