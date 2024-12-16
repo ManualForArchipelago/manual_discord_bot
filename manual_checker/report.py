@@ -20,7 +20,7 @@ class Report:
 
     def to_embed(self) -> Embed:
         embed = Embed(title=self.name)
-        embed.add_field(name="Manual Version", value=self.base_version)
+        embed.add_field(name="Manual Version", value=self.base_version or "Unknown")
         if self.name.lower() not in self.filename().lower():
             self.errors[self.filename()] = [f"Filename should be {self.name.lower()}.apworld"]
         for fn, errors in self.errors.items():
