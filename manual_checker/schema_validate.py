@@ -8,20 +8,16 @@ SCHEMAS = {}
 async def validate_json(schema_table_name, table):
     errors = []
     githubSchemaBaseUrl = "https://raw.githubusercontent.com/ManualForArchipelago/Manual/main/schemas/"
+    schema = None
     if isinstance(table, dict) and table.get("$schema"):
         url = table["$schema"]
-    else:
+        if await download_schema(schema_table_name, url):
+            schema = SCHEMAS[url]
+    if not schema:
         url = githubSchemaBaseUrl + "Manual." + schema_table_name + ".schema.json"
+        await download_schema(schema_table_name, url)
 
-    if url not in SCHEMAS:
-        async with aiohttp.ClientSession() as session:
-            async with session.get(url) as response:
-                if response.status != 200:
-                    print(f"Could not fetch schema for {schema_table_name}")
-                    return errors
-                SCHEMAS[url] = json.loads(await response.text())
-
-    schema = SCHEMAS[url]
+    schema = SCHEMAS.get(url, None)
     if schema:
         try:
             jsonschema.validators.validate(instance=table, schema=schema)
@@ -31,3 +27,21 @@ async def validate_json(schema_table_name, table):
     else:
         print(f"Could not find schema for {schema_table_name}")
     return errors
+
+async def download_schema(schema_table_name, url):
+    if url in SCHEMAS:
+        return True
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url) as response:
+                if response.status != 200:
+                    print(f"Could not fetch schema for {schema_table_name}")
+                    return False
+                SCHEMAS[url] = json.loads(await response.text())
+                return True
+    except aiohttp.InvalidUrlClientError:
+        print(f"Invalid schema url for {schema_table_name}")
+        return False
+    except json.JSONDecodeError:
+        print(f"Invalid schema for {schema_table_name}")
+        return False
