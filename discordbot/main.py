@@ -17,11 +17,11 @@ class Bot(interactions.Client):
             sync_ext=True,
             send_command_tracebacks=False,
         )
-        # super().load_extension(
-        #     "interactions.ext.sentry",
-        #     dsn="https://7aadf0c15f880e90e01c4dba496f152d@o233010.ingest.us.sentry.io/4507219660832768",
-        #     enable_tracing=True,
-        # )
+        super().load_extension(
+            "interactions.ext.sentry",
+            dsn="https://7aadf0c15f880e90e01c4dba496f152d@o233010.ingest.us.sentry.io/4507219660832768",
+            enable_tracing=True,
+        )
         super().load_extension("manual_checker")
         super().load_extension("pins")
         # super().load_extension("interactions.ext.jurigged")
