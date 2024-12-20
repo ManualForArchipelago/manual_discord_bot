@@ -22,10 +22,8 @@ async def validate_json(schema_table_name, table):
         try:
             jsonschema.validators.validate(instance=table, schema=schema)
         except ValidationError as e:
-            print(f"Validation error for {schema_table_name}: {e.message}")
-            errors.append(e.message)
-    else:
-        print(f"Could not find schema for {schema_table_name}")
+            print(f"Validation error for {schema_table_name}: {parseJsonSchemaException(e)}")
+            errors.append(parseJsonSchemaException(e))
     return errors
 
 async def download_schema(schema_table_name, url):
@@ -45,3 +43,15 @@ async def download_schema(schema_table_name, url):
     except json.JSONDecodeError:
         print(f"Invalid schema for {schema_table_name}")
         return False
+
+def parseJsonSchemaException(e: ValidationError) -> str:
+    error = e.message
+    if e.validator == 'type':
+        error = f"Type error in the property '{e.json_path.lstrip('$.')}': " + e.message
+    elif e.validator == 'oneOf':
+        error = f"At least one of the following properties must be present: {[p['required'] for p in e.validator_value]}"
+    elif e.validator == "additionalProperties":
+        error = f"One of your defined property is invalid, it was found at/in '{e.json_path.lstrip('$.')}' and may have unexpected results. \n   Full error: {e.message}"
+    # elif e.validator == 'required':
+    #     error = f"" + e.message
+    return error
