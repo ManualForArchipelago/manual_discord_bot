@@ -13,6 +13,8 @@ class Report:
     checksums: dict[str, str] = attrs.field(factory=dict)
 
     def load_game(self, game_table: dict):
+        if game_table is None:
+            return
         game = game_table.get("game", {})
         creator = game_table.get("creator", "") or game_table.get("player", "")
         if game and creator:
