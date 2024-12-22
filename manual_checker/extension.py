@@ -3,6 +3,8 @@ import zipfile
 import json
 import pathlib
 import glob
+import ast
+import base64
 
 import aiohttp
 from interactions.models import Extension, Message, Attachment, DMChannel
@@ -22,6 +24,7 @@ SUPPORT_CHANNELS = [
 
 class ManualChecker(Extension):
     known_checksums = {}
+    known_hooks = {}
 
     @listen()
     async def on_ready(self, event: events.Ready) -> None:
@@ -29,6 +32,10 @@ class ManualChecker(Extension):
             with open(checksums) as f:
                 data = json.load(f)
                 self.known_checksums[os.path.splitext(os.path.basename(checksums))[0]] = data
+        for checksums in glob.glob("checksums/*.hooks"):
+            with open(checksums) as f:
+                data = json.load(f)
+                self.known_hooks[os.path.splitext(os.path.basename(checksums))[0]] = data
         await self.download_base_versions()
         if configuration.get("check_existing_apworlds", False):
             for apworld in glob.glob("apworlds/*.apworld"):
@@ -59,8 +66,12 @@ class ManualChecker(Extension):
 
     async def check_apworld(self, path: str) -> Report:
         checksums: dict[str, int] = {}
+        hook_checksums: dict[str, int] = {}
         jsons = {}
         errors = {}
+        asts: dict[str, ast.Module] = {}
+
+        report = Report(path, os.path.basename(path), None, errors)
 
         with zipfile.ZipFile(path) as zf:
             for info in zf.infolist():
@@ -80,12 +91,21 @@ class ManualChecker(Extension):
                             print(f"Failed to load {fn}")
                             jsons[fn] = None
                             errors[fn] = [str(e)]
+                if fn.endswith('.py'):
+                    with zf.open(info) as f:
+                        asts[fn] = ast.parse(f.read(), report.filename + '/' + fn)
+
+        self.hash_functions(hook_checksums, asts)
+
+
         with open(os.path.join(os.path.splitext(path)[0] + ".checksums"), "w") as f:
             json.dump(checksums, f, indent=1)
+        with open(os.path.join(os.path.splitext(path)[0] + ".hooks"), "w") as f:
+            json.dump(hook_checksums, f, indent=1)
 
-        report = Report(path, os.path.basename(path), None, errors)
         report.load_game(jsons.get("data/game.json", {}))
         report.checksums = checksums
+        report.hook_checksums = hook_checksums
 
         found_version = self.identify_base_version(checksums, report)
 
@@ -100,6 +120,14 @@ class ManualChecker(Extension):
 
         print(errors)
         return report
+
+    def hash_functions(self, hook_checksums, asts):
+        for fn, tree in asts.items():
+            module_name = os.path.splitext(os.path.basename(fn))[0]
+            if fn.startswith('hooks/'):
+                for obj in tree.body:
+                    if isinstance(obj, ast.FunctionDef):
+                        hook_checksums[f'{module_name}.{obj.name}'] = base64.b64encode(ast.unparse(obj).encode()).decode()
 
 
     def identify_base_version(self, checksums, report: Report) -> str:
@@ -125,6 +153,14 @@ class ManualChecker(Extension):
                 report.base_version = version
                 report.modified_hooks = modified_hooks
                 break
+        if found_version:
+            if found_version in self.known_hooks:
+                for hook, checksum in report.hook_checksums.items():
+                    if hook not in self.known_hooks[found_version]:
+                        continue
+                    elif self.known_hooks[found_version][hook] != checksum:
+                        report.modified_hook_functions.append(hook)
+                        print(f"Hook {hook} has been modified")
         return found_version
 
     async def download_base_versions(self):
@@ -136,16 +172,20 @@ class ManualChecker(Extension):
                         if asset["name"].endswith(".apworld"):
                             path = os.path.join("apworlds", release["tag_name"] + ".apworld")
                             checksum_path = os.path.join("checksums", f"{release['tag_name']}.checksums")
-                            if os.path.exists(checksum_path):
+                            hooks_path = os.path.join("checksums", f"{release['tag_name']}.hooks")
+                            if os.path.exists(checksum_path) and os.path.exists(hooks_path):
                                 continue
                             url = asset["browser_download_url"]
-                            data = await download_apworld(url)
-                            with open(path, "wb") as f:
-                                f.write(data)
+                            if not os.path.exists(path):
+                                data = await download_apworld(url)
+                                with open(path, "wb") as f:
+                                    f.write(data)
                             report = await self.check_apworld(path)
 
                             with open(checksum_path, "w") as f:
                                 json.dump(report.checksums, f, indent=1)
+                            with open(hooks_path, "w") as f:
+                                json.dump(report.hook_checksums, f, indent=1)
                             self.known_checksums[release["tag_name"]] = report.checksums
 
     @tasks.Task.create(tasks.CronTrigger("0 0 * * *"))

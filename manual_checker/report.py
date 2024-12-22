@@ -10,7 +10,9 @@ class Report:
     errors: dict[str, list[str]]
 
     modified_hooks: list[str] = attrs.field(factory=list)
-    checksums: dict[str, str] = attrs.field(factory=dict)
+    checksums: dict[str, int] = attrs.field(factory=dict)
+    hook_checksums: dict[str, int] = attrs.field(factory=dict)
+    modified_hook_functions: list[str] = attrs.field(factory=list)
 
     def load_game(self, game_table: dict):
         if game_table is None:
@@ -23,13 +25,16 @@ class Report:
     def to_embed(self) -> Embed:
         embed = Embed(title=self.name)
         embed.add_field(name="Manual Version", value=self.base_version or "Unknown")
-        if self.name.lower() not in self.filename().lower():
-            self.errors[self.filename()] = [f"Filename should be {self.name.lower()}.apworld"]
+        if self.name.lower() not in self.filename.lower():
+            self.errors[self.filename] = [f"Filename should be {self.name.lower()}.apworld"]
         for fn, errors in self.errors.items():
             embed.add_field(name=f'{fn} errors', value="\n".join(f'`{e}`' for e in errors), inline=False)
         if self.modified_hooks:
-            embed.add_field(name="Modified Hooks", value="\n".join(self.modified_hooks), inline=False)
+            embed.add_field(name="Modified Hook Files", value="\n".join(self.modified_hooks), inline=False)
+        if self.modified_hook_functions:
+            embed.add_field(name="Modified Hook Functions", value="\n".join(self.modified_hook_functions), inline=False)
         return embed
 
+    @property
     def filename(self) -> str:
         return os.path.basename(self.path)
