@@ -84,16 +84,9 @@ class ManualChecker(Extension):
 
                 checksums[fn] = zf.getinfo(info.filename).CRC
                 if fn.endswith(".json"):
-                    with zf.open(info) as f:
-                        try:
-                            jsons[fn] = json.load(f)
-                        except json.JSONDecodeError as e:
-                            print(f"Failed to load {fn}")
-                            jsons[fn] = None
-                            errors[fn] = [str(e)]
-                if fn.endswith('.py'):
-                    with zf.open(info) as f:
-                        asts[fn] = ast.parse(f.read(), report.filename + '/' + fn)
+                    self.parse_json_file(jsons, errors, zf, info, fn)
+                elif fn.endswith('.py'):
+                    self.parse_source_code(asts, report, zf, info, fn)
 
         self.hash_functions(hook_checksums, asts)
 
@@ -120,6 +113,23 @@ class ManualChecker(Extension):
 
         print(errors)
         return report
+
+    def parse_json_file(self, jsons, errors, zf, info, fn):
+        with zf.open(info) as f:
+            try:
+                jsons[fn] = json.load(f)
+            except json.JSONDecodeError as e:
+                print(f"Failed to load {fn}")
+                jsons[fn] = None
+                errors[fn] = [str(e)]
+
+    def parse_source_code(self, asts, report, zf, info, fn):
+        try:
+            with zf.open(info) as f:
+                asts[fn] = ast.parse(f.read(), report.filename + '/' + fn)
+        except SyntaxError as e:
+            print(f"Failed to parse {fn}")
+            report.errors[fn] = [str(e)]
 
     def hash_functions(self, hook_checksums, asts):
         for fn, tree in asts.items():
