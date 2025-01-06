@@ -11,7 +11,8 @@ from interactions.models import Extension, Message, Attachment, DMChannel
 from interactions import events, listen
 from interactions.models.internal import tasks
 
-from manual_checker.report import Report
+from .report import Report
+from .validate_logic import validate_regions
 from .schema_validate import validate_json
 from shared import configuration
 
@@ -110,6 +111,8 @@ class ManualChecker(Extension):
             v = await validate_json(table, data)
             if v:
                 errors[fn] = v
+            if table == "regions":
+                validate_regions(data, report)
 
         print(errors)
         return report
