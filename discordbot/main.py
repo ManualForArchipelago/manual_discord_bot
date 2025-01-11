@@ -24,6 +24,7 @@ class Bot(interactions.Client):
         )
         super().load_extension("manual_checker")
         super().load_extension("pins")
+        super().load_extension("forum_scanner")
         # super().load_extension("interactions.ext.jurigged")
 
     def init(self) -> None:

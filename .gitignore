@@ -6,3 +6,4 @@ config.json
 
 .pytype
 /apworlds/*
+/manuals.json
