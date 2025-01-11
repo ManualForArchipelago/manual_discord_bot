@@ -21,6 +21,7 @@ SUPPORT_CHANNELS = [
     1097891385190928504, # manual-unstable
     1098306155492687892, # manual-support
     1098306190414450779, # manual-support-unstable
+    1174806714130898964, # Rhythm Game Thread
 ]
 
 class ManualChecker(Extension):
