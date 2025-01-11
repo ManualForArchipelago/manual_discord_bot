@@ -39,7 +39,7 @@ class Scanner(Extension):
 
     def scan_thread(self, forum, thread):
         print(thread)
-        MANUALS[forum.name][thread.id].update({
+        MANUALS[forum.name].setdefault(thread.id, {}).update({
                 "title": thread.name,
                 "author": thread.owner_id,
             })
