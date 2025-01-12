@@ -19,7 +19,7 @@ class Bot(interactions.Client):
         )
         super().load_extension(
             "interactions.ext.sentry",
-            dsn="https://7aadf0c15f880e90e01c4dba496f152d@o233010.ingest.us.sentry.io/4507219660832768",
+            dsn="https://206eec537a5440838cedd51e63c9acaf@errors.redpoint.games/4",
             enable_tracing=True,
         )
         super().load_extension("manual_checker")

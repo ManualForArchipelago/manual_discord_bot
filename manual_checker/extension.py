@@ -89,6 +89,15 @@ class ManualChecker(Extension):
                 elif fn.endswith('.py'):
                     self.parse_source_code(asts, report, zf, info, fn)
 
+        if not [fn for fn in asts if not '/' in fn]:
+            init_location = [p.filename for p in zf.infolist() if p.filename.endswith('__init__.py')][0]
+            subfolder = init_location.split('/')[0] + '/'
+            report.errors[os.path.basename(path)] = f"__init__.py found in {init_location}, should be in {init_location.removeprefix(subfolder)}"
+            badfolder = init_location.split('/')[1] + '/'
+            asts = {fn.removeprefix(badfolder): asts[fn] for fn in asts if fn.startswith(badfolder)}
+            checksums = {fn.removeprefix(badfolder): checksums[fn] for fn in checksums if fn.startswith(badfolder)}
+
+
         self.hash_functions(hook_checksums, asts)
 
 
@@ -145,13 +154,22 @@ class ManualChecker(Extension):
 
     def identify_base_version(self, checksums, report: Report) -> str:
         found_version = None
+        is_mrgr = False
+        mrgr_version = [version for version in self.known_hooks if version.startswith("MRGR")][-1]
         for version, known_checksums in self.known_checksums.items():
+            if version.startswith("MRGR"):
+                continue
             match = True
             modified_hooks = []
             for fn, checksum in checksums.items():
+                if fn in ['data/! JSONGenerator.py', 'data/! JSONtoSongFile.py', 'data/song.txt']:
+                    is_mrgr = True
                 if fn not in known_checksums:
                     continue
-                if fn.startswith("hooks/") and known_checksums[fn] != checksum:
+                if is_mrgr and fn.startswith("hooks/") and self.known_checksums[mrgr_version][fn] != checksum:
+                    modified_hooks.append(fn)
+                    continue
+                elif not is_mrgr and fn.startswith("hooks/") and known_checksums[fn] != checksum:
                     modified_hooks.append(fn)
                     continue
                 if '/' in fn:
@@ -167,13 +185,19 @@ class ManualChecker(Extension):
                 report.modified_hooks = modified_hooks
                 break
         if found_version:
-            if found_version in self.known_hooks:
+            hook_version = found_version
+            if is_mrgr:
+                hook_version = mrgr_version
+            if hook_version in self.known_hooks:
                 for hook, checksum in report.hook_checksums.items():
-                    if hook not in self.known_hooks[found_version]:
+                    if hook not in self.known_hooks[hook_version]:
                         continue
-                    elif self.known_hooks[found_version][hook] != checksum:
+                    elif self.known_hooks[hook_version][hook] != checksum:
                         report.modified_hook_functions.append(hook)
                         print(f"Hook {hook} has been modified")
+        if is_mrgr:
+            report.base_version = report.base_version + "+" + 'ManualRhythmGameRandomizer'
+            return report.base_version
         return found_version
 
     async def download_base_versions(self):
@@ -181,25 +205,37 @@ class ManualChecker(Extension):
             async with session.get("https://api.github.com/repos/ManualForArchipelago/Manual/releases") as response:
                 data = await response.json()
                 for release in data:
-                    for asset in release["assets"]:
-                        if asset["name"].endswith(".apworld"):
-                            path = os.path.join("apworlds", release["tag_name"] + ".apworld")
-                            checksum_path = os.path.join("checksums", f"{release['tag_name']}.checksums")
-                            hooks_path = os.path.join("checksums", f"{release['tag_name']}.hooks")
-                            if os.path.exists(checksum_path) and os.path.exists(hooks_path):
-                                continue
-                            url = asset["browser_download_url"]
-                            if not os.path.exists(path):
-                                data = await download_apworld(url)
-                                with open(path, "wb") as f:
-                                    f.write(data)
-                            report = await self.check_apworld(path)
+                    await self.process_release(release)
+            async with session.get("https://api.github.com/repos/KillerAwesomexX/KayaysManualRandomizers/releases") as response:
+                data = await response.json()
+                for release in data:
+                    if not release["tag_name"].startswith("MRGR"):
+                        continue
+                    await self.process_release(release)
+                    break
 
-                            with open(checksum_path, "w") as f:
-                                json.dump(report.checksums, f, indent=1)
-                            with open(hooks_path, "w") as f:
-                                json.dump(report.hook_checksums, f, indent=1)
-                            self.known_checksums[release["tag_name"]] = report.checksums
+    async def process_release(self, release):
+        for asset in release["assets"]:
+            # if not asset["name"].endswith(".apworld"):
+            #     continue
+            path = os.path.join("apworlds", release["tag_name"] + ".apworld")
+            checksum_path = os.path.join("checksums", f"{release['tag_name']}.checksums")
+            hooks_path = os.path.join("checksums", f"{release['tag_name']}.hooks")
+            if os.path.exists(checksum_path) and os.path.exists(hooks_path):
+                continue
+            url = asset["browser_download_url"]
+            if not os.path.exists(path):
+                data = await download_apworld(url)
+                with open(path, "wb") as f:
+                    f.write(data)
+            report = await self.check_apworld(path)
+
+            with open(checksum_path, "w") as f:
+                json.dump(report.checksums, f, indent=1)
+            with open(hooks_path, "w") as f:
+                json.dump(report.hook_checksums, f, indent=1)
+            self.known_checksums[release["tag_name"]] = report.checksums
+
 
     @tasks.Task.create(tasks.CronTrigger("0 0 * * *"))
     async def daily_tasks(self) -> None:
