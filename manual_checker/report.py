@@ -4,6 +4,7 @@ from interactions.models import Embed
 
 @attrs.define()
 class Report:
+    id: int
     path: str
     name: str
     base_version: str
@@ -11,7 +12,7 @@ class Report:
 
     modified_hooks: list[str] = attrs.field(factory=list)
     checksums: dict[str, int] = attrs.field(factory=dict)
-    hook_checksums: dict[str, int] = attrs.field(factory=dict)
+    hook_checksums: dict[str, str] = attrs.field(factory=dict)
     modified_hook_functions: list[str] = attrs.field(factory=list)
 
     def load_game(self, game_table: dict):

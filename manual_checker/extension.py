@@ -1,20 +1,25 @@
+import io
 import os
+import re
+import time
 import zipfile
 import json
 import pathlib
 import glob
 import ast
 import base64
+import difflib
 
 import aiohttp
-from interactions.models import Extension, Message, Attachment, DMChannel
-from interactions import events, listen
+from interactions.models import Extension, Message, Attachment, DMChannel, ComponentContext, component_callback
+from interactions.models.discord.components import Button, ButtonStyle, spread_to_rows
+from interactions import File, events, listen
 from interactions.models.internal import tasks
 
 from .report import Report
 from .validate_logic import validate_regions
 from .schema_validate import validate_json
-from shared import configuration
+from shared import configuration, limited_dict
 
 SUPPORT_CHANNELS = [
     1097538232914296944, # manual-dev
@@ -27,6 +32,8 @@ SUPPORT_CHANNELS = [
 class ManualChecker(Extension):
     known_checksums = {}
     known_hooks = {}
+
+    reports = limited_dict.LimitedSizeDict(size_limit=100)
 
     @listen()
     async def on_ready(self, event: events.Ready) -> None:
@@ -63,8 +70,44 @@ class ManualChecker(Extension):
             f.write(data)
 
         report = await self.check_apworld(path)
-        await message.reply(embed=report.to_embed())
+        components = []
+        if report.modified_hook_functions or report.modified_hooks:
+            components.append(Button(label="View Modified Hooks", custom_id=f"view_hooks:{report.id}", style=ButtonStyle.BLURPLE))
+        await message.reply(embed=report.to_embed(), components=components)
 
+
+    @component_callback(re.compile(r"view_hooks:(\d+)"))
+    async def list_modifications(self, ctx: ComponentContext) -> None:
+        report = self.reports.get(int(ctx.custom_id.split(":")[1]))
+        if not report:
+            await ctx.send("Report has expired", ephemeral=True)
+            return
+        components = []
+        # for i, hook in enumerate(report.modified_hooks):
+        #     components.append(Button(label=hook, custom_id=f"view_file:{report.id}:{i}", style=ButtonStyle.BLURPLE))
+        for i, hook in enumerate(report.modified_hook_functions):
+            components.append(Button(label=hook, custom_id=f"view_func:{report.id}:{i}", style=ButtonStyle.GREEN))
+        return await ctx.send("Select a hook to view", components=spread_to_rows(*components), ephemeral=True)
+
+    @component_callback(re.compile(r"view_func:(\d+):(\d+)"))
+    async def view_function(self, ctx: ComponentContext) -> None:
+        report = self.reports.get(int(ctx.custom_id.split(":")[1]))
+        if not report:
+            await ctx.send("Report has expired", ephemeral=True)
+            return
+        index = int(ctx.custom_id.split(":")[2])
+        hook_name = report.modified_hook_functions[index]
+        hook = base64.b64decode(report.hook_checksums.get(hook_name).encode()).decode()
+        base = base64.b64decode(self.known_hooks[report.base_version].get(hook_name).encode()).decode()
+        diff = difflib.unified_diff(base.splitlines(), hook.splitlines(), lineterm="")
+        diff_text = "\n".join(diff)
+        if len(diff_text) > 2000:
+            buffer = io.BytesIO()
+            buffer.write(diff_text.encode())
+            buffer.seek(0)
+            diff_file = File(file=buffer, file_name=f"{hook_name}.txt")
+            return await ctx.send("", file=diff_file, ephemeral=True)
+        await ctx.send("```diff\n" + diff_text + "```", ephemeral=True)
 
     async def check_apworld(self, path: str) -> Report:
         checksums: dict[str, int] = {}
@@ -73,7 +116,10 @@ class ManualChecker(Extension):
         errors = {}
         asts: dict[str, ast.Module] = {}
 
-        report = Report(path, os.path.basename(path), None, errors)
+
+        report_id = int(time.time() % 1735650000)
+        report = Report(report_id, path, os.path.basename(path), None, errors)
+        self.reports[report.id] = report
 
         with zipfile.ZipFile(path) as zf:
             for info in zf.infolist():
