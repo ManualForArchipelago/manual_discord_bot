@@ -1,5 +1,6 @@
 from collections import defaultdict
 import json
+import logging
 import os
 from interactions import events
 from interactions.models import Extension, listen, GuildCategory, GuildForum, GuildForumPost
@@ -49,6 +50,7 @@ class Scanner(Extension):
             # A bunch of stuff not worth doing for threads that havn't been touched in a while
             if not MANUALS[forum.name].setdefault(thread_id, {}).get("_joined_thread", False):
                 MANUALS[forum.name][thread_id]["_joined_thread"] = True
+                logging.info(f"Joining {thread.name}")
                 await thread.join()
             pins = await thread.fetch_pinned_messages()
             for pin in pins:
