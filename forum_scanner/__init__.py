@@ -2,7 +2,7 @@ from collections import defaultdict
 import json
 import os
 from interactions import events
-from interactions.models import Extension, listen, GuildCategory, GuildForum
+from interactions.models import Extension, listen, GuildCategory, GuildForum, GuildForumPost
 from interactions.models.internal import tasks
 
 MANUALS = {}
@@ -32,13 +32,12 @@ class Scanner(Extension):
     async def scan_forum(self, forum: GuildForum) -> None:
         MANUALS.setdefault(forum.name, defaultdict(dict))
         for thread in await forum.fetch_posts():
-            self.scan_thread(forum, thread)
+            await self.scan_thread(forum, thread)
         older = forum.archived_posts()
         async for thread in older:
-            self.scan_thread(forum, thread)
+            await self.scan_thread(forum, thread)
 
-    def scan_thread(self, forum, thread):
-        print(thread)
+    async def scan_thread(self, forum: GuildForum, thread: GuildForumPost) -> None:
         thread_id = str(thread.id)
         MANUALS[forum.name].setdefault(thread_id, {}).update({
                 "title": thread.name,
@@ -46,4 +45,15 @@ class Scanner(Extension):
             })
         if thread.applied_tags:
             MANUALS[forum.name][thread_id]["tags"] = [tag.name for tag in thread.applied_tags]
-            print(thread.applied_tags)
+        if not thread.archived:
+            # A bunch of stuff not worth doing for threads that havn't been touched in a while
+            if not MANUALS[forum.name].setdefault(thread_id, {}).get("_joined_thread", False):
+                MANUALS[forum.name][thread_id]["_joined_thread"] = True
+                await thread.join()
+            pins = await thread.fetch_pinned_messages()
+            for pin in pins:
+                MANUALS[forum.name][thread_id].setdefault("pins", {})[pin.id] = {
+                    "author": pin._author_id,
+                    "content": pin.content,
+                    "attachments": [attachment.filename for attachment in pin.attachments],
+                }

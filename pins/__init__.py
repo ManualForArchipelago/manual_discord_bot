@@ -31,4 +31,6 @@ def can_pin(event: MessageReactionAdd | MessageReactionRemove) -> bool:
         return False
     if event.author.id != channel.owner_id:
         return False
+    if event.author.id != event.message._author_id:
+        return False
     return True
