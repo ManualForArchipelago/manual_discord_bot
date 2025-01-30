@@ -39,10 +39,11 @@ class Scanner(Extension):
 
     def scan_thread(self, forum, thread):
         print(thread)
-        MANUALS[forum.name].setdefault(thread.id, {}).update({
+        thread_id = str(thread.id)
+        MANUALS[forum.name].setdefault(thread_id, {}).update({
                 "title": thread.name,
                 "author": thread.owner_id,
             })
         if thread.applied_tags:
-            MANUALS[forum.name][thread.id]["tags"] = [tag.name for tag in thread.applied_tags]
+            MANUALS[forum.name][thread_id]["tags"] = [tag.name for tag in thread.applied_tags]
             print(thread.applied_tags)
