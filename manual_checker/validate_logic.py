@@ -5,6 +5,8 @@ from manual_checker.report import Report
 def validate_regions(table: dict, report: Report) -> None:
     starting = []
     for name, data in table.items():
+        if name == "$schema":
+            continue
         if data.get("starting", False):
             starting.append(name)
     if starting:
