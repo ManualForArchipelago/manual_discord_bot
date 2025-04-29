@@ -136,6 +136,14 @@ class ManualChecker(Extension):
                 elif fn.endswith('.py'):
                     self.parse_source_code(asts, report, zf, info, fn)
 
+        if not [fn for fn in asts if '/' not in fn]:
+            init_location = [p.filename for p in zf.infolist() if p.filename.endswith('__init__.py')][0]
+            subfolder = init_location.split('/')[0] + '/'
+            report.errors[os.path.basename(path)] = f"__init__.py found in {init_location}, should be in {init_location.removeprefix(subfolder)}"
+            badfolder = init_location.split('/')[1] + '/'
+            asts = {fn.removeprefix(badfolder): asts[fn] for fn in asts if fn.startswith(badfolder)}
+            checksums = {fn.removeprefix(badfolder): checksums[fn] for fn in checksums if fn.startswith(badfolder)}
+
         self.hash_functions(hook_checksums, asts)
 
 
