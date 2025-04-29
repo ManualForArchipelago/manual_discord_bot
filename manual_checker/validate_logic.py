@@ -4,8 +4,10 @@ from manual_checker.report import Report
 
 def validate_regions(table: dict, report: Report) -> None:
     starting = []
+    ignored = set()
     for name, data in table.items():
         if name == "$schema":
+            ignored.add(name)
             continue
         if data.get("starting", False):
             starting.append(name)
@@ -20,7 +22,7 @@ def validate_regions(table: dict, report: Report) -> None:
                     connected.append(region)
                     queue.append(region)
 
-        unreachable = set(table.keys()) - set(connected)
+        unreachable = set(table.keys()) - set(connected) - ignored
         if unreachable:
             report.errors.setdefault("regions.json", [])
             if connected == starting:
