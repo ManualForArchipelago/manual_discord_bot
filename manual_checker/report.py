@@ -14,6 +14,7 @@ class Report:
     checksums: dict[str, int] = attrs.field(factory=dict)
     hook_checksums: dict[str, str] = attrs.field(factory=dict)
     modified_hook_functions: list[str] = attrs.field(factory=list)
+    latest: str = attrs.field(default=None)
 
     def load_game(self, game_table: dict):
         if game_table is None:
@@ -25,7 +26,10 @@ class Report:
 
     def to_embed(self) -> Embed:
         embed = Embed(title=self.name)
-        embed.add_field(name="Manual Version", value=self.base_version or "Unknown")
+        ver = self.base_version
+        if self.latest:
+            ver += f" (Latest {self.latest})"
+        embed.add_field(name="Manual Version", value=ver or "Unknown")
         #if self.name.lower() not in self.filename.lower():
         #    self.errors[self.filename] = [f"Filename should be {self.name.lower()}.apworld"]
         for fn, errors in self.errors.items():

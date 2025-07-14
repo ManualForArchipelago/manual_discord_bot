@@ -32,6 +32,8 @@ SUPPORT_CHANNELS = [
 class ManualChecker(Extension):
     known_checksums = {}
     known_hooks = {}
+    latest_stable = None
+    latest_unstable = None
 
     reports = limited_dict.LimitedSizeDict(size_limit=100)
 
@@ -220,6 +222,10 @@ class ManualChecker(Extension):
                 found_version = version
                 report.base_version = version
                 report.modified_hooks = modified_hooks
+                if found_version == self.latest_stable:
+                    report.latest = "Stable"
+                elif found_version == self.latest_unstable:
+                    report.latest = "Unstable"
                 break
         if found_version:
             if found_version in self.known_hooks:
@@ -232,12 +238,18 @@ class ManualChecker(Extension):
         return found_version
 
     async def download_base_versions(self):
+        latest_stable = None
+        latest_unstable = None
         async with aiohttp.ClientSession() as session:
             async with session.get("https://api.github.com/repos/ManualForArchipelago/Manual/releases") as response:
                 data = await response.json()
                 for release in data:
                     for asset in release["assets"]:
                         if asset["name"].endswith(".apworld"):
+                            if latest_unstable is None and latest_stable is None and "unstable" in release["tag_name"]:
+                                latest_unstable = release['tag_name']
+                            elif latest_stable is None and "manual_stable" in release["tag_name"]:
+                                latest_stable = release['tag_name']
                             path = os.path.join("apworlds", release["tag_name"] + ".apworld")
                             checksum_path = os.path.join("checksums", f"{release['tag_name']}.checksums")
                             hooks_path = os.path.join("checksums", f"{release['tag_name']}.hooks")
@@ -255,6 +267,8 @@ class ManualChecker(Extension):
                             with open(hooks_path, "w") as f:
                                 json.dump(report.hook_checksums, f, indent=1)
                             self.known_checksums[release["tag_name"]] = report.checksums
+        self.latest_stable = latest_stable
+        self.latest_unstable = latest_unstable
 
     @tasks.Task.create(tasks.CronTrigger("0 0 * * *"))
     async def daily_tasks(self) -> None:
