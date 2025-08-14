@@ -89,7 +89,7 @@ class ManualChecker(Extension):
         #     components.append(Button(label=hook, custom_id=f"view_file:{report.id}:{i}", style=ButtonStyle.BLURPLE))
         for i, hook in enumerate(report.modified_hook_functions):
             components.append(Button(label=hook, custom_id=f"view_func:{report.id}:{i}", style=ButtonStyle.GREEN))
-        return await ctx.send("Select a hook to view", components=spread_to_rows(*components), ephemeral=True)
+        return await ctx.send("Select a hook to view", components=spread_to_rows(*components) if components else None, ephemeral=True)
 
     @component_callback(re.compile(r"view_func:(\d+):(\d+)"))
     async def view_function(self, ctx: ComponentContext) -> None:
