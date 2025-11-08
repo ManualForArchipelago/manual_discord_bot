@@ -195,8 +195,8 @@ class ManualChecker(Extension):
             if fn == "archipelago.json":
                 ap_manifest = data
 
-        if not ap_manifest:
-            errors["archipelago.json"] = ["Missing archipelago.json"]
+        # if not ap_manifest:
+        #     errors["archipelago.json"] = ["Missing archipelago.json"]
 
         print(errors)
         return report
