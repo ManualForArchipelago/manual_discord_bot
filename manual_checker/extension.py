@@ -73,8 +73,10 @@ class ManualChecker(Extension):
 
         report = await self.check_apworld(path)
         components = []
-        if report.modified_hook_functions or report.modified_hooks:
+        if report.modified_hook_functions: # or report.modified_hooks:
             components.append(Button(label="View Modified Hooks", custom_id=f"view_hooks:{report.id}", style=ButtonStyle.BLURPLE))
+        if "Missing archipelago.json" in report.errors.get("archipelago.json", []):
+            components.append(Button(label="Add missing archipelago.json", custom_id=f"add_ap_manifest:{report.id}", style=ButtonStyle.GREEN))
         await message.reply(embed=report.to_embed(), components=components)
 
 
@@ -110,6 +112,25 @@ class ManualChecker(Extension):
             diff_file = File(file=buffer, file_name=f"{hook_name}.txt")
             return await ctx.send("", file=diff_file, ephemeral=True)
         await ctx.send("```diff\n" + diff_text + "```", ephemeral=True)
+
+    @component_callback(re.compile(r"add_ap_manifest:(\d+)"))
+    async def add_ap_manifest(self, ctx: ComponentContext) -> None:
+        await ctx.defer(ephemeral=True)
+        report: Report = self.reports.get(int(ctx.custom_id.split(":")[1]))
+        if not report:
+            await ctx.send("Report has expired", ephemeral=True)
+            return
+
+        # Logic to add the missing archipelago.json
+        with zipfile.ZipFile(report.path, 'a') as zf:
+            ap_manifest = {
+                "version": "7",
+                "compatible_version": "7",
+                "game": report.name,
+            }
+            filename = os.path.splitext(report.filename)[0] + "/archipelago.json"
+            zf.writestr(filename, json.dumps(ap_manifest, indent=4))
+        await ctx.send(content="Updated APWorld with archipelago.json:", file=File(report.path, os.path.basename(report.path)))
 
     async def check_apworld(self, path: str) -> Report:
         checksums: dict[str, int] = {}
@@ -161,6 +182,7 @@ class ManualChecker(Extension):
         found_version = self.identify_base_version(checksums, report)
 
         print(f"{path} matches {found_version}")
+        ap_manifest = None
         for fn, data in jsons.items():
             if data is None:
                 continue
@@ -170,6 +192,11 @@ class ManualChecker(Extension):
                 errors[fn] = v
             if table == "regions":
                 validate_regions(data, report)
+            if fn == "archipelago.json":
+                ap_manifest = data
+
+        if not ap_manifest:
+            errors["archipelago.json"] = ["Missing archipelago.json"]
 
         print(errors)
         return report
