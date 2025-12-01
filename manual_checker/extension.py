@@ -124,8 +124,8 @@ class ManualChecker(Extension):
         # Logic to add the missing archipelago.json
         with zipfile.ZipFile(report.path, 'a') as zf:
             ap_manifest = {
-                "version": "7",
-                "compatible_version": "7",
+                "version": 7,
+                "compatible_version": 7,
                 "game": report.name,
             }
             filename = os.path.splitext(report.filename)[0] + "/archipelago.json"
@@ -197,6 +197,8 @@ class ManualChecker(Extension):
 
         # if not ap_manifest:
         #     errors["archipelago.json"] = ["Missing archipelago.json"]
+        if ap_manifest and ap_manifest.get("game") != report.name:
+            errors["archipelago.json"] = [f"archipelago.json game field should be `{report.name}`"]
 
         print(errors)
         return report
