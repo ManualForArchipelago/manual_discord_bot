@@ -91,7 +91,7 @@ class ManualChecker(Extension):
         #     components.append(Button(label=hook, custom_id=f"view_file:{report.id}:{i}", style=ButtonStyle.BLURPLE))
         for i, hook in enumerate(report.modified_hook_functions):
             components.append(Button(label=hook, custom_id=f"view_func:{report.id}:{i}", style=ButtonStyle.GREEN))
-        return await ctx.send("Select a hook to view", components=spread_to_rows(*components) if components else None, ephemeral=True)
+        await ctx.send("Select a hook to view", components=spread_to_rows(*components) if components else None, ephemeral=True)
 
     @component_callback(re.compile(r"view_func:(\d+):(\d+)"))
     async def view_function(self, ctx: ComponentContext) -> None:
@@ -110,7 +110,8 @@ class ManualChecker(Extension):
             buffer.write(diff_text.encode())
             buffer.seek(0)
             diff_file = File(file=buffer, file_name=f"{hook_name}.txt")
-            return await ctx.send("", file=diff_file, ephemeral=True)
+            await ctx.send("", file=diff_file, ephemeral=True)
+            return
         await ctx.send("```diff\n" + diff_text + "```", ephemeral=True)
 
     @component_callback(re.compile(r"add_ap_manifest:(\d+)"))
