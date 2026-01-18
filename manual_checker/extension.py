@@ -160,9 +160,9 @@ class ManualChecker(Extension):
                     self.parse_source_code(asts, report, zf, info, fn)
 
         zp = zipfile.Path(path)
-        if not (zp / zp.filename.name[:-8] / "__init__.py").exists():
+        if not (zp / zp.filename.stem / "__init__.py").exists():
             # [:-8] to strip ".apworld" from filename
-            reports[zp.filename.name] = f"Unexpected Folder Structure found, expected __init__.py in {zp.filename.name}/{zp.filename.name[:-8]} but was not found."
+            report.errors.setdefault(zp.filename.name,[]).append(f"Unexpected Folder Structure found, expected __init__.py in {zp.filename.name}/{zp.filename.stem} but was not found.")
 
         if not [fn for fn in asts if '/' not in fn]:
             init_location = [p.filename for p in zf.infolist() if p.filename.endswith('__init__.py')][0]
