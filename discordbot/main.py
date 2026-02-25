@@ -22,7 +22,8 @@ class Bot(interactions.Client):
             dsn="https://7aadf0c15f880e90e01c4dba496f152d@o233010.ingest.us.sentry.io/4507219660832768",
             enable_tracing=True,
         )
-        super().load_extension("manual_checker")
+        if configuration.get("load_checker", True):
+            super().load_extension("manual_checker")
         super().load_extension("pins")
         super().load_extension("forum_scanner")
         # super().load_extension("interactions.ext.jurigged")

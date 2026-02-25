@@ -166,7 +166,13 @@ class ManualChecker(Extension):
             report.errors.setdefault(zp.filename.name,[]).append(f"Unexpected Folder Structure found, expected __init__.py in {zp.filename.name}/{zp.filename.stem} but was not found.")
 
         if not [fn for fn in asts if '/' not in fn]:
-            init_location = [p.filename for p in zf.infolist() if p.filename.endswith('__init__.py')][0]
+            init_files = [p.filename for p in zf.infolist() if p.filename.endswith('__init__.py')]
+            if not init_files:
+                # Uhhh, there's no python in here.
+                report.errors[os.path.basename(path)] = ['No __init__.py found.  Something has gone terribly wrong.']
+                return report
+
+            init_location = init_files[0]
             subfolder = init_location.split('/')[0] + '/'
             report.errors[os.path.basename(path)] = [f"__init__.py found in {init_location}, should be in {init_location.removeprefix(subfolder)}"]
             badfolder = init_location.split('/')[1] + '/'
