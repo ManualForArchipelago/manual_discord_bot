@@ -199,6 +199,8 @@ class ManualChecker(Extension):
             if data is None:
                 continue
             table = os.path.splitext(os.path.basename(fn))[0]
+            if table == 'events' and 0 < report.numeric_version < 20260129:
+                errors[fn] = ['You are trying to use events.json on a version that does not support events']
             v = await validate_json(table, data)
             if v:
                 errors[fn] = v
@@ -262,6 +264,7 @@ class ManualChecker(Extension):
             if match:
                 found_version = version
                 report.base_version = version
+                report.numeric_version = int(version.split('_')[-1])
                 report.modified_hooks = modified_hooks
                 if found_version == self.latest_stable:
                     report.latest = "Stable"

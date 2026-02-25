@@ -15,6 +15,7 @@ class Report:
     hook_checksums: dict[str, str] = attrs.field(factory=dict)
     modified_hook_functions: list[str] = attrs.field(factory=list)
     latest: str = attrs.field(default=None)
+    numeric_version: int = attrs.field(default=0)
 
     def load_game(self, game_table: dict):
         if game_table is None:
