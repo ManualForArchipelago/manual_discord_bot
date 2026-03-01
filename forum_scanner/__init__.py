@@ -1,3 +1,4 @@
+import asyncio
 from collections import defaultdict
 import json
 import logging
@@ -6,6 +7,7 @@ import re
 from interactions import events
 from interactions.models import Extension, listen, GuildCategory, GuildForum, GuildForumPost, User
 from interactions.models.internal import tasks
+import sentry_sdk
 
 MANUALS = {}
 
@@ -54,7 +56,13 @@ class Scanner(Extension):
                 MANUALS[forum.name][thread_id]["_joined_thread"] = True
                 logging.info(f"Joining {thread.name}")
                 await thread.join()
-            pins = await thread.fetch_pinned_messages()
+            try:
+                pins = await thread.fetch_pinned_messages()
+            except AttributeError as e:
+                sentry_sdk.capture_exception(e)
+                pins = []
+                await asyncio.sleep(60)
+
             for pin in pins:
                 if pin._guild_id is None:
                     pin._guild_id = forum._guild_id
@@ -64,6 +72,7 @@ class Scanner(Extension):
                     "attachments": [attachment.filename for attachment in pin.attachments],
                     "url": pin.proto_url,
                 }
+            await asyncio.sleep(10)
 
     async def build_index(self) -> None:
         await self.write_page("board_games", "Board & Card Games", MANUALS["board-card-games"])
