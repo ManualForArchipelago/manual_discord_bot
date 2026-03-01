@@ -1,4 +1,4 @@
-from collections import deque
+from collections import defaultdict, deque
 from manual_checker.report import Report
 
 
@@ -17,13 +17,21 @@ def validate_regions(table: dict, report: Report) -> None:
     if starting:
         # Check that all regions are reachable
         connected = starting.copy()
+        backlinks = defaultdict(list)
         queue = deque(starting)
         while queue:
             current = queue.popleft()
+            if current not in table:
+                report.errors.setdefault("regions.json", [])
+                bl = ','.join(backlinks[current])
+                report.errors["regions.json"].append(f"{bl} links to {current}, but {current} is not a defined region.")
+                continue
             for region in table[current].get("connects_to", []):
+                backlinks[region].append(current)
                 if region not in connected:
                     connected.append(region)
                     queue.append(region)
+
 
         unreachable = set(table.keys()) - set(connected) - ignored
         if unreachable:
