@@ -17,7 +17,7 @@ def validate_regions(table: dict, report: Report) -> None:
     if starting:
         # Check that all regions are reachable
         connected = starting.copy()
-        backlinks = defaultdict(list)
+        backlinks: defaultdict[str, list[str]] = defaultdict(list)
         queue = deque(starting)
         while queue:
             current = queue.popleft()
