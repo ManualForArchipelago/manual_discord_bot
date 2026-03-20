@@ -17,7 +17,7 @@ from interactions import File, events, listen
 from interactions.models.internal import tasks
 
 from .report import Report
-from .validate_logic import validate_regions
+from .validate_logic import validate_events, validate_regions
 from .schema_validate import validate_json
 from shared import configuration, limited_dict
 
@@ -208,6 +208,8 @@ class ManualChecker(Extension):
                 validate_regions(data, report)
             if fn == "archipelago.json":
                 ap_manifest = data
+            if table == "events":
+                validate_events(data, report, jsons.get("data/locations.json", {}))
 
         # if not ap_manifest:
         #     errors["archipelago.json"] = ["Missing archipelago.json"]

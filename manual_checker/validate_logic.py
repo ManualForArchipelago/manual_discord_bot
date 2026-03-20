@@ -45,3 +45,27 @@ def validate_regions(table: dict, report: Report) -> None:
     elif has_connections:
             report.errors.setdefault("regions.json", [])
             report.errors["regions.json"].append('"connects_to" has been used, but there are no starting regions defined.  Without a starting region, everything is connected to everything.')
+
+def validate_events(table: dict, report: Report, location_table: dict) -> None:
+    events: list[dict] = []
+    locations: set[str]
+    if isinstance(table, dict):
+        events = table['data'] if 'data' in table else []
+    elif isinstance(table, list):
+        events = table
+    else:
+        return
+
+    if isinstance(location_table, dict):
+        locations = set([loc['name'] for loc in location_table.get('data', []) if 'name' in loc])
+    elif isinstance(location_table, list):
+        locations = set([loc['name'] for loc in location_table if 'name' in loc])
+    else:
+        locations = set()
+
+    for item in events:
+        name = item.get("name", "<unnamed event>")
+        loc = item.get("copy_location", None)
+        if loc and loc not in locations:
+            report.errors.setdefault("events.json", [])
+            report.errors["events.json"].append(f"Event \"{name}\" is trying to copy undefined location \"{loc}\"")
