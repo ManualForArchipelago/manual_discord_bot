@@ -34,7 +34,10 @@ class Report:
         #if self.name.lower() not in self.filename.lower():
         #    self.errors[self.filename] = [f"Filename should be {self.name.lower()}.apworld"]
         for fn, errors in self.errors.items():
-            embed.add_field(name=f'{fn} errors', value="\n".join(f'`{e}`' for e in errors), inline=False)
+            v = "\n".join(f'`{e}`' for e in errors)
+            if len(v) > 1000:
+                v = v[:997] + "..."
+            embed.add_field(name=f'{fn} errors', value=v, inline=False)
         if self.modified_hooks:
             embed.add_field(name="Modified Hook Files", value="\n".join(self.modified_hooks), inline=False)
         if self.modified_hook_functions:
